@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu | KRM Smart Canteen</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="nav">
+        <h2>🍔 KRM Smart Canteen</h2>
+        <div class="nav-links">
+            <a href="cart.html">🛒 Cart (<span id="cart-count">0</span>)</a>
+            <a href="orders.html">🧾 My Orders</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="flash" class="success-msg" style="display:none;"></div>
+        <div class="text-center">
+            <h1 class="hero-title">Today's Fresh Menu</h1>
+            <p class="hero-subtitle">Pre-order your meal and skip the line during break!</p>
+        </div>
+        <div id="menu-grid" class="grid">
+            <div class="spinner">Loading menu...</div>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script>
+        // Auth guard
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        if (!user) window.location.href = "../index.html";
+
+        const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+        document.getElementById("cart-count").textContent = cart.length;
+
+        async function loadMenu() {
+            try {
+                const res = await fetch(`${API_BASE}/api/menu`);
+                const items = await res.json();
+                renderMenu(items);
+            } catch (e) {
+                document.getElementById("menu-grid").innerHTML =
+                    `<div class="error-msg" style="grid-column:1/-1">Failed to load menu. Please refresh.</div>`;
+            }
+        }
+
+        function renderMenu(items) {
+            const grid = document.getElementById("menu-grid");
+            if (!items.length) { grid.innerHTML = `<p class="info-msg">No menu items available.</p>`; return; }
+            grid.innerHTML = items.map(item => `
+                <div class="card">
+                    <h4>${item.name} <span>${item.emoji}</span></h4>
+                    <p class="badge badge-category">${item.category}</p>
+                    <p class="card-desc">${item.description}</p>
+                    <p class="card-price">₹${item.price}</p>
+                    <button onclick="addToCart(${item.id}, '${escHtml(item.name)}', ${item.price})">Add to Cart</button>
+                </div>
+            `).join("");
+        }
+
+        function addToCart(id, name, price) {
+            const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+            cart.push({ id, name, price });
+            sessionStorage.setItem("cart", JSON.stringify(cart));
+            document.getElementById("cart-count").textContent = cart.length;
+
+            const flash = document.getElementById("flash");
+            flash.textContent = `✅ "${name}" added to cart!`;
+            flash.style.display = "block";
+            setTimeout(() => flash.style.display = "none", 2000);
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = "../index.html";
+        }
+
+        function escHtml(str) { return str.replace(/'/g, "\\'"); }
+
+        loadMenu();
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard | KRM Smart Canteen</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="nav admin-nav">
+        <h2>👨‍🍳 Staff Dashboard – Live Orders</h2>
+        <div class="nav-links">
+            <span style="color:rgba(255,255,255,0.7); font-size:0.85em;" id="last-updated"></span>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="orders-grid" class="grid">
+            <div class="spinner">Loading orders...</div>
+        </div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script>
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        if (!user || user.role !== "admin") window.location.href = "../index.html";
+
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/orders`);
+                const orders = await res.json();
+                renderOrders(orders);
+                document.getElementById("last-updated").textContent =
+                    "Updated: " + new Date().toLocaleTimeString();
+            } catch (e) {
+                document.getElementById("orders-grid").innerHTML =
+                    `<div class="error-msg" style="grid-column:1/-1;">Failed to load orders.</div>`;
+            }
+        }
+
+        function renderOrders(orders) {
+            const grid = document.getElementById("orders-grid");
+            if (!orders.length) {
+                grid.innerHTML = `
+                    <div class="card" style="text-align:center; grid-column:1/-1; padding:50px;">
+                        <h3 style="color:var(--text-muted);">No active orders right now.</h3>
+                        <p>Waiting for students to place an order...</p>
+                    </div>`;
+                return;
+            }
+
+            const nextStatus = { Pending: "Preparing", Preparing: "Ready", Ready: "Completed" };
+            const btnClass   = { Pending: "btn-prepare", Preparing: "btn-ready", Ready: "btn-complete" };
+            const btnLabel   = { Pending: "Accept & Start Cooking", Preparing: "Food is Ready for Pickup", Ready: "Mark as Collected" };
+
+            grid.innerHTML = orders.map(o => `
+                <div class="card">
+                    <div class="order-header">
+                        <h4 style="margin:0; color:var(--primary);">Order #${o.id}</h4>
+                        <span class="badge ${o.status}">${o.status}</span>
+                    </div>
+                    <p style="color:#666; font-weight:bold; margin:0 0 10px 0;">Student: ${o.username}</p>
+                    <div class="order-items">
+                        <ul style="margin:0; padding-left:20px; color:var(--text-main);">
+                            ${o.items.split(", ").map(i => `<li>${i}</li>`).join("")}
+                        </ul>
+                    </div>
+                    <p style="font-weight:700; color:var(--primary); margin:0 0 5px 0;">₹${o.total}</p>
+                    <small style="color:var(--text-muted); display:block; margin-bottom:15px;">${o.timestamp}</small>
+                    <hr style="border:0; border-top:1px solid #eee; margin-bottom:15px;">
+                    ${o.status !== "Completed"
+                        ? `<button class="${btnClass[o.status]}" onclick="updateStatus(${o.id}, '${nextStatus[o.status]}', this)">
+                               ${btnLabel[o.status]}
+                           </button>`
+                        : `<p style="text-align:center; color:var(--text-muted); font-weight:bold; margin:0;">✅ Order Completed</p>`
+                    }
+                </div>
+            `).join("");
+        }
+
+        async function updateStatus(orderId, newStatus, btn) {
+            btn.disabled = true;
+            btn.textContent = "Updating...";
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/orders/${orderId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                if (!res.ok) throw new Error();
+                await loadOrders();
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = "Retry";
+                alert("Failed to update status. Please try again.");
+            }
+        }
+
+        function logout() { sessionStorage.clear(); window.location.href = "../index.html"; }
+
+        loadOrders();
+        // Auto-refresh every 10 seconds
+        setInterval(loadOrders, 10000);
+    </script>
+</body>
+</html>

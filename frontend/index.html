@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Canteen – Login</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-box">
+            <h2>🍔 KRM Smart Canteen</h2>
+            <div id="error-msg" class="error-msg" style="display:none;"></div>
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button id="login-btn" onclick="login()">Login</button>
+            <p style="text-align:center; color:var(--text-muted); font-size:0.85em; margin-top:20px;">
+                Demo: student / pass &nbsp;|&nbsp; admin / admin
+            </p>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        // Redirect if already logged in
+        if (sessionStorage.getItem("user")) {
+            const user = JSON.parse(sessionStorage.getItem("user"));
+            window.location.href = user.role === "admin" ? "pages/admin.html" : "pages/menu.html";
+        }
+
+        async function login() {
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const btn = document.getElementById("login-btn");
+            const errEl = document.getElementById("error-msg");
+
+            if (!username || !password) { showError("Please fill in all fields."); return; }
+
+            btn.disabled = true;
+            btn.textContent = "Logging in...";
+            errEl.style.display = "none";
+
+            try {
+                const res = await fetch(`${API_BASE}/api/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, password })
+                });
+                if (!res.ok) { showError("Invalid username or password."); return; }
+                const user = await res.json();
+                sessionStorage.setItem("user", JSON.stringify(user));
+                window.location.href = user.role === "admin" ? "pages/admin.html" : "pages/menu.html";
+            } catch (e) {
+                showError("Could not connect to server. Please try again.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Login";
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById("error-msg");
+            el.textContent = msg;
+            el.style.display = "block";
+        }
+
+        // Allow Enter key to submit
+        document.addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+    </script>
+</body>
+</html>

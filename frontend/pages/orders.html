@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders | KRM Smart Canteen</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="nav">
+        <h2>🧾 My Orders</h2>
+        <div class="nav-links">
+            <a href="menu.html">← Back to Menu</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="success-banner" class="success-msg" style="display:none;">
+            🎉 Order placed successfully! We'll start preparing it soon.
+        </div>
+        <div id="orders-list"><div class="spinner">Loading your orders...</div></div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script>
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        if (!user) window.location.href = "../index.html";
+
+        if (new URLSearchParams(location.search).get("success")) {
+            document.getElementById("success-banner").style.display = "block";
+        }
+
+        async function loadOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/api/orders/${user.username}`);
+                const orders = await res.json();
+                renderOrders(orders);
+            } catch (e) {
+                document.getElementById("orders-list").innerHTML =
+                    `<div class="error-msg">Failed to load orders. Please refresh.</div>`;
+            }
+        }
+
+        function renderOrders(orders) {
+            const el = document.getElementById("orders-list");
+            if (!orders.length) {
+                el.innerHTML = `<div class="info-msg"><h3>No orders yet 🍽️</h3><p><a href="menu.html" style="color:var(--primary);font-weight:bold;">Browse the menu</a></p></div>`;
+                return;
+            }
+            el.innerHTML = `<div class="grid">${orders.map(o => `
+                <div class="card order-card">
+                    <div class="order-header">
+                        <h4 style="margin:0;">Order #${o.id}</h4>
+                        <span class="badge ${o.status}">${o.status}</span>
+                    </div>
+                    <div class="order-items">
+                        <ul style="margin:0; padding-left:20px;">
+                            ${o.items.split(", ").map(i => `<li>${i}</li>`).join("")}
+                        </ul>
+                    </div>
+                    <p style="font-weight:700; color:var(--primary); margin:0 0 8px 0;">Total: ₹${o.total}</p>
+                    <small style="color:var(--text-muted);">${o.timestamp}</small>
+                </div>
+            `).join("")}</div>`;
+        }
+
+        function logout() { sessionStorage.clear(); window.location.href = "../index.html"; }
+
+        loadOrders();
+        // Auto-refresh every 15 seconds to see status updates
+        setInterval(loadOrders, 15000);
+    </script>
+</body>
+</html>

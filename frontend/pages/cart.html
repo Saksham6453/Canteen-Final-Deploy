@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart | KRM Smart Canteen</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="nav">
+        <h2>🛒 Your Cart</h2>
+        <div class="nav-links">
+            <a href="menu.html">← Back to Menu</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <div class="container" style="max-width: 600px;">
+        <div id="cart-content"></div>
+    </div>
+
+    <script src="../js/config.js"></script>
+    <script>
+        const user = JSON.parse(sessionStorage.getItem("user") || "null");
+        if (!user) window.location.href = "../index.html";
+
+        function renderCart() {
+            const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+            const el = document.getElementById("cart-content");
+
+            if (!cart.length) {
+                el.innerHTML = `
+                    <div class="info-msg">
+                        <h3>Your cart is empty 🛒</h3>
+                        <p><a href="menu.html" style="color:var(--primary); font-weight:bold;">Browse the menu</a></p>
+                    </div>`;
+                return;
+            }
+
+            const total = cart.reduce((sum, i) => sum + i.price, 0);
+            el.innerHTML = `
+                <div class="card" style="margin-top:0;">
+                    ${cart.map((item, idx) => `
+                        <div class="cart-item">
+                            <span>${item.name}</span>
+                            <span style="display:flex; align-items:center; gap:15px;">
+                                <span>₹${item.price}</span>
+                                <button onclick="removeItem(${idx})" style="width:auto; padding:5px 12px; background:#ff4757; font-size:0.8em; margin:0;">✕</button>
+                            </span>
+                        </div>
+                    `).join("")}
+                    <div class="cart-total">Total: ₹${total.toFixed(2)}</div>
+                    <button class="btn-checkout" onclick="checkout()">Place Order 🎉</button>
+                </div>`;
+        }
+
+        function removeItem(idx) {
+            const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+            cart.splice(idx, 1);
+            sessionStorage.setItem("cart", JSON.stringify(cart));
+            renderCart();
+        }
+
+        async function checkout() {
+            const cart = JSON.parse(sessionStorage.getItem("cart") || "[]");
+            if (!cart.length) return;
+
+            const btn = document.querySelector(".btn-checkout");
+            btn.disabled = true;
+            btn.textContent = "Placing order...";
+
+            try {
+                const res = await fetch(`${API_BASE}/api/orders`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: user.username, cart })
+                });
+                if (!res.ok) throw new Error();
+                sessionStorage.removeItem("cart");
+                window.location.href = "orders.html?success=1";
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = "Place Order 🎉";
+                document.getElementById("cart-content").insertAdjacentHTML(
+                    "afterbegin",
+                    `<div class="error-msg">Failed to place order. Please try again.</div>`
+                );
+            }
+        }
+
+        function logout() { sessionStorage.clear(); window.location.href = "../index.html"; }
+
+        renderCart();
+    </script>
+</body>
+</html>
